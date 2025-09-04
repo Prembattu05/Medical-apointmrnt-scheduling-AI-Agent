@@ -23,33 +23,32 @@ def bot_say(message):
 def user_say(message):
     st.session_state.messages.append(("user", message))
 
-# Display chat history
+# ---------------- Show Chat History ----------------
 for role, msg in st.session_state.messages:
     if role == "user":
         st.markdown(f"**You:** {msg}")
     else:
         st.markdown(f"**Bot:** {msg}")
 
-# ---------------- Conversation Steps ----------------
+# ---------------- Conversation Flow ----------------
 if st.session_state.step == 0:
-    # Only say hello once
     if not any("What is your first name?" in m for _, m in st.session_state.messages):
         bot_say("👋 Hello! I can help you schedule an appointment. What is your first name?")
-    
-    # Input widgets appear here
+
     name = st.text_input("Enter your first name:")
     dob = st.text_input("Enter your date of birth (YYYY-MM-DD):")
-    
+
     if st.button("Continue"):
         user_say(f"My name is {name}, DOB {dob}")
         patient = patients_df[(patients_df["first_name"] == name) & (patients_df["dob"] == dob)]
 
         if not patient.empty:
+            # Returning patient
             st.session_state.patient = patient.iloc[0].to_dict()
             st.session_state.patient["is_returning"] = True
             bot_say("Welcome back! You are a returning patient. You get a 30-minute slot.")
         else:
-            # Create a new patient
+            # New patient
             new_id = patients_df["patient_id"].max() + 1 if not patients_df.empty else 1
             new_patient = {
                 "patient_id": new_id,
@@ -71,28 +70,22 @@ if st.session_state.step == 0:
 
             st.session_state.patient = new_patient
             bot_say("Welcome! You are a new patient. You get a 60-minute slot.")
-        
+
         st.session_state.step = 1
-        st.experimental_rerun()
-
-
-elif st.session_state.step == 1:
-    bot_say("Which doctor would you like to see?")
-    ...
-
-
-
+        st.rerun()
 
 elif st.session_state.step == 1:
-    bot_say("Which doctor would you like to see?")
+    if not any("Which doctor would you like to see?" in m for _, m in st.session_state.messages):
+        bot_say("Which doctor would you like to see?")
+
     doctor = st.selectbox("Choose your doctor:", doctors_df["doctor"].unique())
     date = st.selectbox("Choose appointment date:", doctors_df["date"].unique())
-    st.session_state.appointment["doctor"] = doctor
-    st.session_state.appointment["date"] = date
     if st.button("Next"):
         user_say(f"I choose {doctor} on {date}")
+        st.session_state.appointment["doctor"] = doctor
+        st.session_state.appointment["date"] = date
         st.session_state.step = 2
-        st.experimental_rerun()
+        st.rerun()
 
 elif st.session_state.step == 2:
     patient = st.session_state.patient
@@ -105,17 +98,22 @@ elif st.session_state.step == 2:
         (doctors_df["date"] == date) &
         (doctors_df["is_available"])
     ]
-    bot_say("Here are available time slots:")
+
+    if not any("Here are available time slots:" in m for _, m in st.session_state.messages):
+        bot_say("Here are available time slots:")
+
     slot = st.selectbox("Choose time slot:", slots["slot_start"].unique())
-    st.session_state.appointment["slot"] = slot
-    st.session_state.appointment["duration"] = duration
     if st.button("Next "):
         user_say(f"I select {slot}")
+        st.session_state.appointment["slot"] = slot
+        st.session_state.appointment["duration"] = duration
         st.session_state.step = 3
-        st.experimental_rerun()
+        st.rerun()
 
 elif st.session_state.step == 3:
-    bot_say("Please provide your insurance details.")
+    if not any("Please provide your insurance details." in m for _, m in st.session_state.messages):
+        bot_say("Please provide your insurance details.")
+
     carrier = st.text_input("Insurance Carrier:")
     member = st.text_input("Member ID:")
     group = st.text_input("Group Number:")
@@ -125,7 +123,7 @@ elif st.session_state.step == 3:
         }
         user_say("I have provided insurance details.")
         st.session_state.step = 4
-        st.experimental_rerun()
+        st.rerun()
 
 elif st.session_state.step == 4:
     patient = st.session_state.patient
@@ -135,7 +133,6 @@ elif st.session_state.step == 4:
     slot = st.session_state.appointment["slot"]
     duration = st.session_state.appointment["duration"]
 
-    # Save to appointments.xlsx
     appointments_df.loc[len(appointments_df)] = [
         appt_id, patient.get("patient_id", "N/A"),
         patient["first_name"], doctor, date, slot,
@@ -149,6 +146,7 @@ elif st.session_state.step == 4:
     bot_say("📄 A New Patient Intake Form will be sent to your email (mock).")
     bot_say("📅 You will receive 3 reminders before your visit.")
     st.session_state.step = 5
+    st.rerun()
 
 elif st.session_state.step == 5:
     st.success("Conversation completed! Scroll up to see the chatbot history.")
