@@ -38,14 +38,39 @@ if st.session_state.step == 0:
     if st.button("Continue"):
         user_say(f"My name is {name}, DOB {dob}")
         patient = patients_df[(patients_df["first_name"] == name) & (patients_df["dob"] == dob)]
+        
         if not patient.empty:
+            # Returning patient
             st.session_state.patient = patient.iloc[0].to_dict()
+            st.session_state.patient["is_returning"] = True
             bot_say("Welcome back! You are a returning patient. You get a 30-minute slot.")
         else:
-            st.session_state.patient = {"first_name": name, "dob": dob, "is_returning": False}
+            # New patient → add them to dataset
+            new_id = patients_df["patient_id"].max() + 1 if not patients_df.empty else 1
+            new_patient = {
+                "patient_id": new_id,
+                "first_name": name,
+                "last_name": "N/A",
+                "dob": dob,
+                "email": f"{name.lower()}@example.com",
+                "phone": "N/A",
+                "is_returning": False,
+                "preferred_doctor": "N/A",
+                "location": "N/A",
+                "insurance_carrier": "",
+                "member_id": "",
+                "group_number": "",
+                "notes": ""
+            }
+            patients_df = patients_df.append(new_patient, ignore_index=True)
+            patients_df.to_csv("patients.csv", index=False)
+
+            st.session_state.patient = new_patient
             bot_say("Welcome! You are a new patient. You get a 60-minute slot.")
+        
         st.session_state.step = 1
         st.experimental_rerun()
+
 
 elif st.session_state.step == 1:
     bot_say("Which doctor would you like to see?")
