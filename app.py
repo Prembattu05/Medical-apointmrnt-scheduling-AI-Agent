@@ -32,20 +32,24 @@ for role, msg in st.session_state.messages:
 
 # ---------------- Conversation Steps ----------------
 if st.session_state.step == 0:
-    bot_say("👋 Hello! I can help you schedule an appointment. What is your first name?")
+    # Only say hello once
+    if not any("What is your first name?" in m for _, m in st.session_state.messages):
+        bot_say("👋 Hello! I can help you schedule an appointment. What is your first name?")
+    
+    # Input widgets appear here
     name = st.text_input("Enter your first name:")
     dob = st.text_input("Enter your date of birth (YYYY-MM-DD):")
+    
     if st.button("Continue"):
         user_say(f"My name is {name}, DOB {dob}")
         patient = patients_df[(patients_df["first_name"] == name) & (patients_df["dob"] == dob)]
 
         if not patient.empty:
-            # Returning patient
             st.session_state.patient = patient.iloc[0].to_dict()
             st.session_state.patient["is_returning"] = True
             bot_say("Welcome back! You are a returning patient. You get a 30-minute slot.")
         else:
-            # New patient
+            # Create a new patient
             new_id = patients_df["patient_id"].max() + 1 if not patients_df.empty else 1
             new_patient = {
                 "patient_id": new_id,
@@ -67,9 +71,10 @@ if st.session_state.step == 0:
 
             st.session_state.patient = new_patient
             bot_say("Welcome! You are a new patient. You get a 60-minute slot.")
-
+        
         st.session_state.step = 1
         st.experimental_rerun()
+
 
 elif st.session_state.step == 1:
     bot_say("Which doctor would you like to see?")
